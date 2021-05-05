@@ -7,3 +7,4 @@ pytest-html == 2.1.1
 PyYAML > 5.1.2
 ansi2html == 1.5.2
 pytest-parallel == 0.0.10
+checksumdir == 1.2.0
