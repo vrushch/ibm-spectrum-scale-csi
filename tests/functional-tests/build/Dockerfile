@@ -4,6 +4,6 @@ RUN apk --no-cache add curl \
         git \
         vim
 
-RUN git clone -b dev https://github.com/IBM/ibm-spectrum-scale-csi.git
+RUN git clone -b iotool https://github.com/Jainbrt/ibm-spectrum-scale-csi.git
 WORKDIR "/ibm-spectrum-scale-csi/tests/functional-tests"
 RUN python3.7 -m pip install -r requirements.txt

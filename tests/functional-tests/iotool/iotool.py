@@ -529,7 +529,7 @@ def validate_data(mntdir, testdir, checksum=None):
     
     testdir = os.path.join(mntdir, testdir)
     if not os.path.exists(testdir):
-  t(f"{testdir} doesn't exist to validate.")
+        print(f"{testdir} doesn't exist to validate.")
         sys.exit(1)
 
     #################
