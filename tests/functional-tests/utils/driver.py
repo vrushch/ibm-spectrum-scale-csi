@@ -417,7 +417,7 @@ def check_pvc(pvc_values,  pvc_name, created_objects, pv_name="pvnotavailable"):
                     con = False
 
 
-def create_pod(value_pod, pvc_name, pod_name, created_objects, image_name="nginx:1.19.0"):
+def create_pod(value_pod, pvc_name, pod_name, created_objects, image_name="quay.io/vrushch/ibm-spectrum-scale-csi-test:iotoolv1"):
     """
     creates pod
 
@@ -425,7 +425,7 @@ def create_pod(value_pod, pvc_name, pod_name, created_objects, image_name="nginx
         param1: value_pod - values required for creation of pod
         param2: pvc_name - name of pvc , pod associated with
         param3: pod_name - name of pod to be created
-        param4: image_name - name of the pod image (Default:"nginx:1.19.0")
+        param4: image_name - name of the pod image 
 
     Returns:
         None
@@ -439,24 +439,35 @@ def create_pod(value_pod, pvc_name, pod_name, created_objects, image_name="nginx
     elif value_pod["read_only"] == "False":
         value_pod["read_only"] = False
     api_instance = client.CoreV1Api()
-    pod_metadata = client.V1ObjectMeta(name=pod_name, labels={"app": "nginx"})
-    pod_volume_mounts = client.V1VolumeMount(
-        name="mypvc", mount_path=value_pod["mount_path"])
-    pod_ports = client.V1ContainerPort(container_port=80)
-    pod_containers = client.V1Container(
-        name="web-server", image=image_name, volume_mounts=[pod_volume_mounts], ports=[pod_ports])
-    pod_persistent_volume_claim = client.V1PersistentVolumeClaimVolumeSource(
-        claim_name=pvc_name, read_only=value_pod["read_only"])
-    pod_volumes = client.V1Volume(
-        name="mypvc", persistent_volume_claim=pod_persistent_volume_claim)
-    pod_spec = client.V1PodSpec(
-        containers=[pod_containers], volumes=[pod_volumes])
-    pod_body = client.V1Pod(
-        api_version="v1",
-        kind="Pod",
-        metadata=pod_metadata,
-        spec=pod_spec
-    )
+    pod_body = {
+       "apiVersion": "v1",
+       "kind": "Pod",
+       "metadata": { "name": pod_name },
+       "spec": {
+          "containers": [
+             {
+                "name": "spectrum-scale-csi-test",
+                "image": image_name,
+                "securityContext": { "privileged": True },
+                "command": [ "/bin/sh", "-c", "--"],
+                "args": [ "while true; do sleep 120; done;" ],
+                "volumeMounts": [{
+                      "name": "mypvc",
+                      "mountPath": value_pod["mount_path"]
+                   }],
+                "ports": [ { "containerPort": 80 } ]
+             }
+          ],
+          "restartPolicy": "Never",
+          "volumes": [
+             {
+                "name": "mypvc",
+                "persistentVolumeClaim": {
+                   "claimName": pvc_name,
+                   "readOnly": value_pod["read_only"]
+             } } ]
+       }
+    }
 
     try:
         LOGGER.info(f'POD Create : creating pod {pod_name} using {pvc_name} with {image_name} image')
@@ -476,11 +487,11 @@ def create_pod(value_pod, pvc_name, pod_name, created_objects, image_name="nginx
 
 def create_file_inside_pod(value_pod, pod_name, created_objects):
     """
-    create snaptestfile inside the pod using touch
+    Run iotool.py write inside the pod using python
     """
     api_instance = client.CoreV1Api()
-    LOGGER.info("POD Check : Trying to create snaptestfile on SpectrumScale mount point inside the pod")
-    exec_command1 = "touch "+value_pod["mount_path"]+"/snaptestfile"
+    LOGGER.info("POD Check : Trying to run iotool.py on SpectrumScale mount point inside the pod")
+    exec_command1 = f'python -u iotool/iotool.py write {value_pod["mount_path"]} testdir1'
     exec_command = [
         '/bin/sh',
         '-c',
@@ -492,23 +503,27 @@ def create_file_inside_pod(value_pod, pod_name, created_objects):
                   stderr=True, stdin=False,
                   stdout=True, tty=False)
 
-    if resp == "":
-        LOGGER.info("file snaptestfile created successfully on SpectrumScale mount point inside the pod")
+    search_result = re.search("TEST RESULT is PASSED", str(resp))
+    if search_result is not None:
+        LOGGER.info("POD Check : iotool.py created files successfully on SpectrumScale mount point inside the pod")
         return
-    LOGGER.error("file snaptestfile not created")
+    LOGGER.error("POD Check : iotool.py not able to create files  on SpectrumScale mount point inside the pod")
+    LOGGER.error(str(resp))
+
     cleanup.clean_with_created_objects(created_objects)
     assert False
 
 
 def check_file_inside_pod(value_pod, pod_name, created_objects, volume_name=None):
     """
-    check snaptestfile inside the pod using ls
+    Run iotool.py check inside the pod using python
     """
     api_instance = client.CoreV1Api()
     if volume_name is None:
-        exec_command1 = "ls "+value_pod["mount_path"]
+        exec_command1 = f'python -u iotool/iotool.py check {value_pod["mount_path"]}  testdir1'
     else:
-        exec_command1 = "ls "+value_pod["mount_path"]+"/"+volume_name+"-data"
+        exec_command1 = f'python -u iotool/iotool.py check {value_pod["mount_path"]}/{volume_name}-data  testdir1'
+
     exec_command = [
         '/bin/sh',
         '-c',
@@ -519,10 +534,13 @@ def check_file_inside_pod(value_pod, pod_name, created_objects, volume_name=None
                   command=exec_command,
                   stderr=True, stdin=False,
                   stdout=True, tty=False)
-    if resp[0:12] == "snaptestfile":
-        LOGGER.info("POD Check : snaptestfile is succesfully restored from snapshot")
+
+    search_result = re.search("TEST RESULT is PASSED", str(resp))
+    if search_result is not None:
+        LOGGER.info("POD Check : iotool.py files succesfully restored from snapshot")
         return
-    LOGGER.error("snaptestfile is not restored from snapshot")
+    LOGGER.error("POD Check : iotool.py files not restored from snapshot")
+    LOGGER.error(str(resp))
     cleanup.clean_with_created_objects(created_objects)
     assert False
 
@@ -659,7 +677,7 @@ def check_pod(value_pod, pod_name, created_objects):
             assert False
 
 
-def create_ds(ds_values, ds_name, pvc_name, created_objects):
+def create_ds(ds_values, ds_name, pvc_name, created_objects, image_name="quay.io/vrushch/ibm-spectrum-scale-csi-test:iotoolv1"):
 
     api_instance = client.AppsV1Api()
     if ds_values["read_only"] == "True":
@@ -696,31 +714,49 @@ def create_ds(ds_values, ds_name, pvc_name, created_objects):
         }
       },
       "spec": {
-        "containers": [
-          {
-            "name": "web-server",
-            "image": "nginxinc/nginx-unprivileged",
-            "volumeMounts": [
-              {
+            "containers": [
+             {
+                "name": "spectrum-scale-csi-test",
+                "image": image_name,
+                "securityContext": {
+                   "privileged": False
+                },
+                "command": [
+                   "/bin/sh",
+                   "-c",
+                   "--"
+                ],
+                "args": [
+                   "while true; do sleep 120; done;"
+                ],
+                "volumeMounts": [
+                   {
+                      "name": "mypvc",
+                      "mountPath": ds_values["mount_path"]
+                   }
+                ],
+                "ports": [
+                   {
+                      "containerPort": 80
+                   }
+                ]
+             }
+          ],
+          "restartPolicy": "Always",
+          "volumes": [
+             {
                 "name": "mypvc",
-                "mountPath": ds_values["mount_path"]
-              }
-            ]
-          }
-        ],
-        "volumes": [
-          {
-            "name": "mypvc",
-            "persistentVolumeClaim": {
-              "claimName": pvc_name,
-              "readOnly": ds_values["read_only"]
-            }
-          }
-        ],
-         "nodeSelector": node_selector_labels
-      }
+                "persistentVolumeClaim": {
+                   "claimName": pvc_name,
+                   "readOnly": ds_values["read_only"]
+                }
+             }
+          ],
+		  "nodeSelector": node_selector_labels
+
+     }
     }
-  }
+    }
     }
 
     try:

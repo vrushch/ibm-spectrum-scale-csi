@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
   - name: csi-test
-    image: quay.io/jainbrt/ibm-spectrum-scale-csi-test:x86 #container iamge for x86
+    image: quay.io/jainbrt/ibm-spectrum-scale-csi-test:iotoolv1 #container iamge for x86
 #    image: quay.io/jainbrt/ibm-spectrum-scale-csi-test:ppcle64 #container iamge for ppcle64
 #    image: quay.io/jainbrt/ibm-spectrum-scale-csi-test:s390x  #container iamge for s390x
     securityContext:

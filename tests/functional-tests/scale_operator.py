@@ -395,7 +395,7 @@ class Driver:
         val = d.check_pvc(value_pvc_pass, pvc_name, created_objects)
         if val is True:
             ds_name = d.get_random_name("ds")
-            d.create_ds(value_ds_pass,ds_name,pvc_name,created_objects)
+            d.create_ds(value_ds_pass,ds_name,pvc_name,created_objects,self.image_name)
             d.check_ds(ds_name,value_ds_pass,created_objects)
         cleanup.clean_with_created_objects(created_objects)
         

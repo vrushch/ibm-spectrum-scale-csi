@@ -1,5 +1,3 @@
-
-
 import os
 import sys
 import time
@@ -62,13 +60,13 @@ def banner_create_files(files, filesize, depth, breadth, files_per_directory):
 
 def print_final_result(test_result):
 
-    print("##########################################")
-    print("        TEST RESULT ")
+    #print("##########################################")
+    #print("        TEST RESULT ")
     print("##########################################")
     test_id = 1
     failed_tests = 0
     for test, result in test_result.items():
-#        result = "PASS" if result else "FAIL"
+        #result = "PASS" if result else "FAIL"
         if result:
             result = "PASS"
         else:
@@ -76,6 +74,9 @@ def print_final_result(test_result):
             failed_tests += 1
         print("{:3d}. {:20} => {:5}".format(test_id, test, result))
         test_id += 1
+    final_result = "FAILED" if failed_tests else "PASSED"
+    print("##########################################")
+    print(f"TEST RESULT is {final_result}")
     print("##########################################")
 
     return failed_tests
