@@ -6,7 +6,7 @@ OLM runs by default on Red Hat® OpenShift® Container Platform 4.2 and later re
 
 Before performing IBM Spectrum Scale Container Storage Interface driver installation, ensure that the prerequisites are met. For more information, see [Performing pre-installation tasks](https://www.ibm.com/docs/en/STXKQY_CSI_SHR/com.ibm.spectrum.scale.csi.v2r20.doc/bl1csi_instal_prereq.html#bl1csi_instal_prereq).
 
-### Steps for Installing IBM Spectrum Scale Container Storage Interface driver using Operator Lifecycle Manager on Openshift and Kubernetes:
+### Steps for Installing IBM Spectrum Scale Container Storage Interface driver using Operator Lifecycle Manager on Openshift and vanilla Kubernetes:
 1. Login to the Red Hat OpenShift Container Platform/ OKD kubernetes Console.
 2. Create Namespace/Project ibm-spectrum-scale-csi-driver
 3. From the left panel, click **Operators > OperatorHub**. The OperatorHub page appears.
