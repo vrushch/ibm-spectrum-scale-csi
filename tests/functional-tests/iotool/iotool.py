@@ -13,6 +13,7 @@ io_suffix = 'io_dir'
 hlink_suffix = 'hlink_dir'
 slink_suffix = 'slink_dir'
 footprint_file = 'iotool.checksum'
+fio_suffix = 'fio_dir'
 
 progress = u'\u2799'
 correct = u'\u2713'
@@ -145,12 +146,40 @@ def create_file(filepath, bs=1, count=1):
     return rc == 0
 
 
+def print_progress_bar(event):
+    """print progress bar when checksum calculation is in progress."""
+
+    while True:
+        sys.stdout.write('.')
+        sys.stdout.flush()
+        event.wait(0.5)
+
+        if event.is_set():
+            break
+
+
 def get_dir_md5hash(directory, excluded_files=None):
     """get checksum of directory"""
 
     print(f"\nfind checksum for directory {directory}")
+    print("This step may take a while depending on the size of directory.")
+    print("Please wait (directory checksum calculation in progress)...")
+    start = time.time()
+
+    #calculate checksum takes time, hence I wanted to show progress bar so that
+    #user doesn't feel script is hanging due to stalled console
+    #hence the below code for depicting progress bar while calculating checksum.
+    event = threading.Event()
+    progress_thread = threading.Thread(target=print_progress_bar, args=(event,))
+    progress_thread.start()
+
     md5hash = dirhash(directory, 'md5', excluded_files=[excluded_files])
-    print(f"checksum for directory {directory} is: {md5hash}\n")
+    event.set()
+    progress_thread.join() # stop progress_thread from printing progress bar henceforth
+
+    end = time.time()
+    print(f"\nchecksum for directory {directory} is: {md5hash}\n")
+    print("Took ", round(end-start, 2), "seconds to calculate checksum for directory")
 
     return md5hash
 
@@ -554,6 +583,132 @@ def validate_data(mntdir, testdir, checksum=None):
 
     return print_final_result(test_result)
 
+#######################
+#fio tests
+#######################
+
+
+def is_cmd_available(cmd):
+    """verify if command/executable is installed"""
+
+    return True if shutil.which(cmd) else False
+
+
+def get_fio_command(io_pattern, directory,
+        bs="4k", filesize="512M", numjobs=20, runtime=20):
+    """form fio command to run
+
+    Reference link: https://fio.readthedocs.io/en/latest/fio_doc.html
+
+    - running fio with blocksize (bs=4k) for total size of (size=512M) against
+      destination directory (directory=XXXXX) with 20 jobs/threads (numjobs=20).
+    - fio command will run for 30 seconds (runtime=30).
+    - minimal output is captured using --group-reporting
+    - this script aims to use fio for data generation activity and not for
+      measuring io statistics, hence using --output-format=normal.
+      --output-format=json is useful to parse/operate resulting i/o stats.
+    """
+
+    #fio --name=randwrite --ioengine=libaio --iodepth=1 --rw=randwrite --bs=4k --direct=0 --size=16M --numjobs=20 --runtime=30 --group_reporting --time_based --directory=d1
+
+    cmd = f"fio --name={io_pattern} --ioengine=libaio --rw={io_pattern} \
+            --bs={bs} --size={filesize}M --numjobs={numjobs} \
+            --runtime={runtime} --time_based --directory={directory} \
+            --group_reporting --output-format=normal"
+
+    return cmd
+
+
+def execute_fio(testdir, io_pattern):
+    """execute fio command for an input io_pattern"""
+
+    banner(f"Running fio for {io_pattern} I/O Pattern...")
+
+    fio_dir = f"{testdir}/{fio_suffix}/{io_pattern}"
+    os.makedirs(f"{fio_dir}")
+
+    fio_cmd = get_fio_command(io_pattern, fio_dir)
+
+    rc = subprocess.call(fio_cmd, shell=True)
+
+    return rc == 0
+
+
+def test_fiowrite(mntdir, testdir):
+    """call execute_fio() for various io_patterns"""
+
+    print("""This test will create data using fio tool.
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    - various i/o patterns will be used e.g. sequential/random read/write.
+    - Each i/o pattern will read/write max 512M data using 4k block size.
+    - Each i/o pattern will run for 30 seconds. We've 6 i/o patterns/
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    """)
+
+    time.sleep(5)
+
+    io_patterns = [
+            'read',          # sequential read
+            'write',         # sequential write
+            'randread',      #random reads
+            'randwrite',     #random writes
+            'readwrite',     #sequential mixed reads and writes
+            'randrw',        #random mixed reads and writes
+    ]
+
+    #define test cases (6 tests - 1 for each io_pattern)
+    test_result = {f"test {i}": False for i in io_patterns}
+
+    #verify we are not over-writing existing directory
+    testdir = os.path.join(mntdir, testdir)
+    if os.path.exists(testdir):
+        print(f"{testdir} directory is already created. Tool won't wipe it out.")
+        sys.exit(1)
+    os.makedirs(f"{testdir}")
+
+    #execute fio write tests for various i/o patterns and store test result
+    for io_pattern in io_patterns:
+        test_name = f"test {io_pattern}"
+        test_result[test_name] = execute_fio(testdir, io_pattern)
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("fio write using i/o patterns finished.")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+    #################
+    # checksum calculation
+    #################
+
+    #find out checksum for entire testdir and store it in a file
+    #this file will be used later to confirm copy/restore succeeds
+    dir_md5hash = get_dir_md5hash(testdir)
+
+    footprint_filepath = f"{testdir}/{footprint_file}"
+    with open(footprint_filepath, 'w') as f:
+        f.write(dir_md5hash)
+
+    print(f"fiowrite directory checksum is {dir_md5hash}")
+
+    return print_final_result(test_result)
+
+
+def test_fiocheck(mntdir, testdir, checksum=None):
+    """verify fiowrite directory checksum and mntdir/testdir checksum is equal"""
+
+    test_result = {
+        'check fio': False,
+    }
+ 
+    testdir = os.path.join(mntdir, testdir)
+    if not os.path.exists(testdir):
+        print(f"{testdir} doesn't exist to validate.")
+        sys.exit(1)
+
+    result = test_check_checksum(testdir, checksum=None)
+    test_result['check fio'] = result
+
+    return print_final_result(test_result)
+
 
 def set_default(files, filesize, depth, breadth):
 
@@ -583,8 +738,17 @@ examples:
            then, copied/restored data can be checked as below
 
            python3 iotool.py check /mnt/fs2/fset2 dir2
+
+        3) fio tool - generate different i/o pattern data (e.g. sequential/random read/write)
+
+           python3 -u iotool.py fiowrite /mnt/fs1/fset1 dir1
+
+        4) suppose one takes snapshot of /mnt/fs1/fset1/dir1 and restores it to /mnt/fs2/fset2/dir2
+           then, validate the restored snapshot data of fio tool as below:
+
+           python3 iotool.py fiocheck /mnt/fs2/fset2 dir2
               """)
-    parser.add_argument("operation", choices=['write', 'check'],)
+    parser.add_argument("operation", choices=['write', 'check', 'fiowrite', 'fiocheck'],)
     parser.add_argument("mntdir", help="mount path")
     parser.add_argument("testdir", help="create this directory under mount path")
     parser.add_argument("--checksum", help="checksum to compare with")
@@ -598,7 +762,7 @@ examples:
     operation = args.operation
     mntdir = args.mntdir
     testdir = args.testdir
-    checksum = args.checksum
+    checksum = args.checksum #if user explicitly provides checksum of directory
     thr_flag = args.threads
     (files, filesize, depth, breadth) = set_default(args.files, args.filesize, args.depth, args.breadth)
 
@@ -613,13 +777,23 @@ examples:
             print(f"Incorrect filesize {filesize} provided. It should be e.g. 1M, 1G, 100K")
             sys.exit(1)
 
-    #possible options - write, check
+    #possible options - write, check, fio
     if operation == 'write':
         rc = generate_data(mntdir, testdir, files, filesize, depth, breadth, thr_flag)
     elif operation == 'check':
         rc = validate_data(mntdir, testdir, checksum)
+    elif operation in ('fiowrite', 'fiocheck'):
+        if not is_cmd_available('fio'):
+            print("fio tool is not installed. Hence not running fio tests.")
+            print("how to install fio? - yum/apt-get install fio")
+            rc = 1
+        elif operation == 'fiowrite':
+            rc = test_fiowrite(mntdir, testdir)
+        elif operation == 'fiocheck':
+            rc = test_fiocheck(mntdir, testdir, checksum)
 
     sys.exit(rc)
+
 
 if __name__ == '__main__':
     try:
