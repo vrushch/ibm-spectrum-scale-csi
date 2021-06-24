@@ -455,7 +455,8 @@ class Snapshot():
         number_of_restore = 1
 
         for pvc_value in self.value_pvc:
-
+            
+            pvc_value = copy.deepcopy(pvc_value)
             created_objects = get_cleanup_dict()
             LOGGER.info("-"*100)
             sc_name = d.get_random_name("sc")
@@ -519,6 +520,7 @@ class Snapshot():
 
         for pvc_value in self.value_pvc:
 
+            pvc_value = copy.deepcopy(pvc_value)
             created_objects = get_cleanup_dict()
             LOGGER.info("-"*100)
             sc_name = d.get_random_name("sc")
