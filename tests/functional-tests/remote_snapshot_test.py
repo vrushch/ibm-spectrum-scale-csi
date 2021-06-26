@@ -495,3 +495,94 @@ def test_snapshot_static_nodeclass_3():
     restore_pvc = {"access_modes": "ReadWriteMany", "storage": "1Gi", "reason": "NotFound desc = nodeclass"}
     snapshot_object.test_static(value_sc, test_restore=True,restore_sc=restore_sc,restore_pvc=restore_pvc)
 
+
+def test_snapshot_dynamic_io_1():
+    value_sc = {"volBackendFs": data["remoteFs"], "clusterId": data["remoteid"]}
+    io_command = "--files 200 --filesize 10K --depth 2 --breadth 100"
+    snapshot_object.test_dynamic(value_sc, test_restore=True, io_value=io_command)
+
+
+def test_snapshot_dynamic_io_2():
+    value_sc = {"volBackendFs": data["remoteFs"], "clusterId": data["remoteid"]}
+    io_command = "--files 540 --filesize 1K --depth 3 --breadth 30"
+    snapshot_object.test_dynamic(value_sc, test_restore=True, io_value=io_command)
+
+
+def test_snapshot_dynamic_io_3():
+    value_sc = {"volBackendFs": data["remoteFs"], "clusterId": data["remoteid"]}
+    io_command = "--files 1000000 --filesize 1K --depth 1 --breadth 1"
+    snapshot_object.test_dynamic(value_sc, test_restore=True, io_value=io_command)
+
+
+def test_snapshot_dynamic_io_4():
+    value_sc = {"volBackendFs": data["remoteFs"], "clusterId": data["remoteid"],
+                "inodeLimit": data["r_inodeLimit"], "uid": data["r_uid_number"],
+                "gid": data["r_gid_number"]}
+    io_command = "--files 200 --filesize 10K --depth 2 --breadth 100"
+    snapshot_object.test_dynamic(value_sc, test_restore=True, io_value=io_command)
+
+
+def test_snapshot_dynamic_io_5():
+    value_sc = {"volBackendFs": data["remoteFs"], "clusterId": data["remoteid"],
+                "inodeLimit": data["r_inodeLimit"], "uid": data["r_uid_number"],
+                "gid": data["r_gid_number"]}
+    io_command = "--files 500 --filesize 1K --depth 4 --breadth 25"
+    snapshot_object.test_dynamic(value_sc, test_restore=True, io_value=io_command)
+
+
+def test_snapshot_dynamic_io_6():
+    value_sc = {"volBackendFs": data["remoteFs"], "clusterId": data["remoteid"],
+                "inodeLimit": data["r_inodeLimit"], "uid": data["r_uid_number"],
+                "gid": data["r_gid_number"]}
+    io_command = "--files 1000000 --filesize 1K --depth 1 --breadth 1"
+    snapshot_object.test_dynamic(value_sc, test_restore=True, io_value=io_command)
+	
+	
+def test_snapshot_dynamic_io_7():
+    value_sc = {"volBackendFs": data["remoteFs"],
+                "inodeLimit": data["r_inodeLimit"],
+                "clusterId": data["remoteid"], "filesetType": "independent"}
+    io_command = "--files 200 --filesize 10K --depth 2 --breadth 100"
+    snapshot_object.test_dynamic(value_sc, test_restore=True, io_value=io_command)
+
+
+def test_snapshot_dynamic_io_8():
+    value_sc = {"volBackendFs": data["remoteFs"],
+                "inodeLimit": data["r_inodeLimit"],
+                "clusterId": data["remoteid"], "filesetType": "independent"}
+    io_command = "--files 500 --filesize 1K --depth 5 --breadth 1"
+    snapshot_object.test_dynamic(value_sc, test_restore=True, io_value=io_command)
+
+
+def test_snapshot_dynamic_io_9():
+    value_sc = {"volBackendFs": data["remoteFs"],
+                "inodeLimit": data["r_inodeLimit"],
+                "clusterId": data["remoteid"], "filesetType": "independent"}
+    io_command = "--files 1000000 --filesize 1K --depth 1 --breadth 1"
+    snapshot_object.test_dynamic(value_sc, test_restore=True, io_value=io_command)
+
+
+@pytest.mark.slow
+def test_snapshot_dynamic_io_10():
+    value_sc = {"volBackendFs": data["remoteFs"], "clusterId": data["remoteid"]}
+    io_command = "--files 1000000 --filesize 1K --depth 50 --breadth 1"
+    snapshot_object.test_dynamic(value_sc, test_restore=True, io_value=io_command)
+
+
+def test_snapshot_static_io_1():
+    value_sc = {"volBackendFs": data["remoteFs"], "clusterId": data["remoteid"]}
+    io_command = "--files 200 --filesize 10K --depth 2 --breadth 100"
+    snapshot_object.test_static(value_sc, test_restore=True, io_value=io_command)
+
+
+def test_snapshot_static_io_2():
+    value_sc = {"volBackendFs": data["remoteFs"], "clusterId": data["remoteid"]}
+    io_command = "--files 500 --filesize 1K --depth 4 --breadth 25"
+    snapshot_object.test_static(value_sc, test_restore=True, io_value=io_command)
+
+
+def test_snapshot_static_io_3():
+    value_sc = {"volBackendFs": data["remoteFs"], "clusterId": data["remoteid"]}
+    io_command = "--files 1000000 --filesize 1K --depth 1 --breadth 1"
+    snapshot_object.test_static(value_sc, test_restore=True, io_value=io_command)
+

@@ -490,8 +490,12 @@ def create_file_inside_pod(value_pod, pod_name, created_objects):
     Run iotool.py write inside the pod using python
     """
     api_instance = client.CoreV1Api()
+    io_value = value_pod["io_value"]
+    if io_value is None:
+        io_value = " "
     LOGGER.info("POD Check : Trying to run iotool.py on SpectrumScale mount point inside the pod")
-    exec_command1 = f'python -u iotool/iotool.py write {value_pod["mount_path"]} testdir1'
+    exec_command1 = f'python -u iotool/iotool.py write {value_pod["mount_path"]} testdir1 {io_value}'
+    LOGGER.info(f"POD COMMAND : {exec_command1}")
     exec_command = [
         '/bin/sh',
         '-c',
@@ -540,6 +544,41 @@ def check_file_inside_pod(value_pod, pod_name, created_objects, volume_name=None
         LOGGER.info("POD Check : iotool.py files succesfully restored from snapshot")
         return
     LOGGER.error("POD Check : iotool.py files not restored from snapshot")
+    LOGGER.error(str(resp))
+    cleanup.clean_with_created_objects(created_objects)
+    assert False
+
+
+def cleanup_file_inside_pod(value_pod, pod_name, created_objects, volume_name=None):
+    """
+    cleanup files created by iotool.y
+    """
+    api_instance = client.CoreV1Api()
+    if volume_name is None:
+        exec_command1 = f'rm -rvf {value_pod["mount_path"]}/testdir1'
+    else:
+        exec_command1 = f'rm -rvf {value_pod["mount_path"]}/{volume_name}-data/testdir1'
+
+    exec_command = [
+        '/bin/sh',
+        '-c',
+        exec_command1]
+    resp = stream(api_instance.connect_get_namespaced_pod_exec,
+                  pod_name,
+                  namespace_value,
+                  command=exec_command,
+                  stderr=True, stdin=False,
+                  stdout=True, tty=False)
+    if volume_name is None:
+        search_dir = f'{value_pod["mount_path"]}/testdir1'
+    else:
+        search_dir = f'{value_pod["mount_path"]}/{volume_name}-data/testdir1'
+
+    search_result = re.search(f"removed directory: '{search_dir}'", str(resp))
+    if search_result is not None:
+        LOGGER.info(f"POD Check : File Cleanup Successful for POD {pod_name}")
+        return
+    LOGGER.error(f"POD Check : File Cleanup not Successful for POD {pod_name}")
     LOGGER.error(str(resp))
     cleanup.clean_with_created_objects(created_objects)
     assert False
