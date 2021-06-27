@@ -442,7 +442,7 @@ def create_pod(value_pod, pvc_name, pod_name, created_objects, image_name="quay.
     pod_body = {
        "apiVersion": "v1",
        "kind": "Pod",
-       "metadata": { "name": pod_name },
+       "metadata": { "name": pod_name , "labels": { "podphase": "csitest" } },
        "spec": {
           "containers": [
              {
