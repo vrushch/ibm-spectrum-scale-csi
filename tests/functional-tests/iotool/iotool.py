@@ -324,7 +324,7 @@ def test_create_files_with_threads(testdir, files, filesize, depth, breadth):
 
 #def thread_task(thr_args=None):
 #    io_dir, top_level_dir, nested_dirs, files_per_directory, bs, count = thr_args
-
+/
 def thread_task(io_dir, top_level_dir, nested_dirs, files_per_directory, bs, count):
     """create files in one top/breadth level directory"""
 
@@ -394,16 +394,12 @@ def test_create_filetypes(testdir, ftype):
 
     print(f"Create {ftype} to source_file")
 
-    cwd = os.getcwd()
-    os.chdir(suffix_dir)
-    source_file = 'source_file'
-    #source_file = os.path.join(suffix_dir, 'source_file')
+    source_file = os.path.join(suffix_dir, 'source_file')
 
     for filename in range(1,101):
         print(".", end="")
 
-        #dest_file = os.path.join(suffix_dir, f"f{filename}")
-        dest_file = f"f{filename}" #e.g. f1, f2, ..., f100
+        dest_file = os.path.join(suffix_dir, f"f{filename}")
         try:
             if ftype == 'symlink':
                 os.symlink(source_file, dest_file)
@@ -411,10 +407,8 @@ def test_create_filetypes(testdir, ftype):
                 os.link(source_file, dest_file)
         except OSError as error:
             banner(f"FAIL: Failed to create {ftype}. Got exception:\n{error}")
-            os.chdir(cwd)
             return False
     print()
-    os.chdir(cwd)
     #for hardlink, ensure all files created share common inode number
     if ftype == 'hardlink' and not test_check_hardlinks(testdir):
         banner(f"FAIL: Failed to create {ftype}. Inode numbers didn't match for all files.")
@@ -467,9 +461,13 @@ def generate_data(mntdir, testdir, files, filesize, depth, breadth, thr_flag):
 
     #find out checksum for entire testdir and store it in a file
     #this file will be used later to confirm copy/restore succeeds
-    dir_md5hash = get_dir_md5hash(testdir)
+    #dir_md5hash = get_dir_md5hash(testdir)
+    #observed issues while finding checksum of symlink, hence calculating checksum for io_dir only
+    io_dir = f"{testdir}/{io_suffix}"
+    dir_md5hash = get_dir_md5hash(io_dir)
 
-    footprint_filepath = f"{testdir}/{footprint_file}"
+    #footprint_filepath = f"{testdir}/{footprint_file}"
+    footprint_filepath = f"{io_dir}/{footprint_file}"
     with open(footprint_filepath, 'w') as f:
         f.write(dir_md5hash)
 
@@ -571,7 +569,9 @@ def validate_data(mntdir, testdir, checksum=None):
     # data validation
     #################
     #1) checksum validation (checksum of original and destination directory should match)
-    result = test_check_checksum(testdir, checksum=None)
+    #result = test_check_checksum(testdir, checksum=None)
+    io_dir = f"{testdir}/{io_suffix}"
+    result = test_check_checksum(io_dir, checksum=None)
     test_result['check files'] = result
 
     #2) check hardlinks
