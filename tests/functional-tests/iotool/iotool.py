@@ -394,12 +394,16 @@ def test_create_filetypes(testdir, ftype):
 
     print(f"Create {ftype} to source_file")
 
-    source_file = os.path.join(suffix_dir, 'source_file')
+    cwd = os.getcwd()
+    os.chdir(suffix_dir)
+    source_file = 'source_file'
+    #source_file = os.path.join(suffix_dir, 'source_file')
+
     for filename in range(1,101):
         print(".", end="")
 
-        dest_file = os.path.join(suffix_dir, f"f{filename}")
-
+        #dest_file = os.path.join(suffix_dir, f"f{filename}")
+        dest_file = f"f{filename}" #e.g. f1, f2, ..., f100
         try:
             if ftype == 'symlink':
                 os.symlink(source_file, dest_file)
@@ -407,9 +411,10 @@ def test_create_filetypes(testdir, ftype):
                 os.link(source_file, dest_file)
         except OSError as error:
             banner(f"FAIL: Failed to create {ftype}. Got exception:\n{error}")
+            os.chdir(cwd)
             return False
     print()
-
+    os.chdir(cwd)
     #for hardlink, ensure all files created share common inode number
     if ftype == 'hardlink' and not test_check_hardlinks(testdir):
         banner(f"FAIL: Failed to create {ftype}. Inode numbers didn't match for all files.")
