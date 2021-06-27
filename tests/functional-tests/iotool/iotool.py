@@ -324,7 +324,7 @@ def test_create_files_with_threads(testdir, files, filesize, depth, breadth):
 
 #def thread_task(thr_args=None):
 #    io_dir, top_level_dir, nested_dirs, files_per_directory, bs, count = thr_args
-/
+
 def thread_task(io_dir, top_level_dir, nested_dirs, files_per_directory, bs, count):
     """create files in one top/breadth level directory"""
 
